@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Decentralized Voting DApp">
+    <title>Decentralized Voting DApp</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Ethers.js library via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    
+    <style>
+        /* === UI Design System === */
+        :root {
+            --bg-dark: #0f172a;
+            --glass-bg: rgba(30, 41, 59, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary-gradient: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --btn-hover: #4f46e5;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Dynamic background gradients */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(139, 92, 246, 0.12), transparent 35%),
+                radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.12), transparent 35%);
+            background-attachment: fixed;
+        }
+
+        /* Header Navigation */
+        header {
+            width: 100%;
+            padding: 1.5rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        /* Buttons styling */
+        .btn {
+            background: var(--primary-gradient);
+            border: none;
+            padding: 0.7rem 1.5rem;
+            color: white;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #334155;
+            color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Main Content Layout */
+        main {
+            width: 100%;
+            max-width: 800px;
+            padding: 3rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            flex-grow: 1;
+        }
+
+        /* Glassmorphism Cards */
+        .glass-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Admin Section */
+        .admin-section {
+            display: none; /* Only revealed if user is admin */
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: rgba(30, 41, 59, 0.8);
+            color: white;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+        }
+
+        /* Candidates List */
+        .candidates-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .candidate-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        .candidate-item:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .candidate-info h3 {
+            font-size: 1.3rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .candidate-info p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .vote-actions {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .vote-count {
+            background: rgba(139, 92, 246, 0.15);
+            color: #c4b5fd;
+            padding: 0.5rem 1.2rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 1.2rem;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        /* Status Messages */
+        #statusMsg {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            display: none;
+            text-align: center;
+            font-weight: 500;
+            animation: fadeIn 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .status-success {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .status-error {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .status-info {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>💎 DecentVote</h1>
+        <button id="connectBtn" class="btn">Connect Wallet</button>
+    </header>
+
+    <main>
+        <!-- Status / Alert Messages -->
+        <div id="statusMsg"></div>
+
+        <!-- Admin Registration Section -->
+        <div class="glass-card admin-section" id="adminSection">
+            <h2>⚙️ Administration Panel</h2>
+            <p style="color: var(--text-muted);">As the contract deployer, you can register candidates.</p>
+            <div class="input-group">
+                <input type="text" id="candidateName" placeholder="Enter new candidate's name...">
+                <button class="btn" id="addCandidateBtn">Register Candidate</button>
+            </div>
+        </div>
+
+        <!-- Voting Dashboard Section -->
+        <div class="glass-card">
+            <h2>📊 Live Election Standings</h2>
+            <div class="candidates-list" id="candidatesList">
+                <p style="text-align: center; color: var(--text-muted); padding: 3rem 1rem;">
+                    Please connect your Web3 wallet to view candidates and cast your vote.
+                </p>
+                <!-- Candidate items will be rendered here dynamically via JavaScript -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        /**
+         * ==========================================
+         *  DAPP CONFIGURATION & SETUP
+         * ==========================================
+         */
+         
+        // 1. Paste your deployed Contract Address here:
+        const CONTRACT_ADDRESS = "0xe9Bbe18c706768CF6aF0091961CAFd65d64728Ed";
+        
+        // 2. Paste your contract ABI JSON here:
+        const CONTRACT_ABI = [
+            [
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
+			}
+		],
+		"name": "addCandidate",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "candidateId",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			}
+		],
+		"name": "CandidateAdded",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_candidateId",
+				"type": "uint256"
+			}
+		],
+		"name": "vote",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "candidateId",
+				"type": "uint256"
+			}
+		],
+		"name": "VotedEvent",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "admin",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "candidates",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "id",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "voteCount",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "candidatesCount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "_candidateId",
+				"type": "uint256"
+			}
+		],
+		"name": "getCandidate",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			},
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			},
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "voters",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+]
+        ];
+
+        /**
+         * ==========================================
+         *  GLOBAL APPLICATION STATE
+         * ==========================================
+         */
+        let provider;
+        let signer;
+        let contract;
+        let userAddress;
+        let isAdmin = false;
+        let hasVoted = false;
+
+        // DOM Elements
+        const connectBtn = document.getElementById('connectBtn');
+        const candidatesList = document.getElementById('candidatesList');
+        const adminSection = document.getElementById('adminSection');
+        const addCandidateBtn = document.getElementById('addCandidateBtn');
+        const candidateNameInput = document.getElementById('candidateName');
+        const statusMsg = document.getElementById('statusMsg');
+
+        /**
+         * ==========================================
+         *  CORE FUNCTIONALITY
+         * ==========================================
+         */
+
+        // Utility to handle showing alerts
+        function showStatus(message, type) {
+            statusMsg.textContent = message;
+            statusMsg.className = ''; // reset classes
+            statusMsg.classList.add(`status-${type}`);
+            statusMsg.style.display = 'block';
+            setTimeout(() => {
+                statusMsg.style.display = 'none';
+            }, 6000);
+        }
+
+        // Initialize connection to MetaMask and Smart Contract
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                showStatus("Please install MetaMask to use this DApp!", "error");
+                return;
+            }
+
+            try {
+                // Request account access
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                userAddress = accounts[0];
+
+                // Create Web3 Provider and Signer using ethers.js
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+
+                // Format button text to show partially hidden address
+                connectBtn.textContent = `${userAddress.substring(0, 6)}...${userAddress.substring(38)}`;
+                connectBtn.disabled = true;
+
+                // Validate if user has supplied the configuration properly
+                if(CONTRACT_ADDRESS === "YOUR_CONTRACT_ADDRESS_HERE" || CONTRACT_ABI.length === 0) {
+                    showStatus("DApp is not configured yet! Please update 'CONTRACT_ADDRESS' and 'CONTRACT_ABI' in the source code.", "error");
+                    return;
+                }
+
+                // Initialize the Contract instance
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
+                // Setup the UI
+                await checkAdminStatus();
+                await checkVoterStatus();
+                await loadCandidates();
+                setupEventListeners();
+
+                showStatus("Wallet connected successfully!", "success");
+
+            } catch (error) {
+                console.error(error);
+                showStatus("Failed to connect wallet.", "error");
+            }
+        }
+
+        // Check if the connected address is the admin (deployer)
+        async function checkAdminStatus() {
+            try {
+                const adminAddress = await contract.admin();
+                if (userAddress.toLowerCase() === adminAddress.toLowerCase()) {
+                    isAdmin = true;
+                    adminSection.style.display = 'block'; // Reveal admin controls
+                }
+            } catch (err) {
+                console.error("Error fetching admin status:", err);
+            }
+        }
+
+        // Check if the current user has already voted
+        async function checkVoterStatus() {
+            try {
+                hasVoted = await contract.voters(userAddress);
+            } catch (err) {
+                console.error("Error checking voter status:", err);
+            }
+        }
+
+        // Fetch and display all registered candidates
+        async function loadCandidates() {
+            try {
+                const count = await contract.candidatesCount();
+                
+                if (count.toNumber() === 0) {
+                    candidatesList.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No candidates registered yet. Election has not begun.</p>`;
+                    return;
+                }
+
+                candidatesList.innerHTML = ''; // clear loading state
+
+                // Loop through 1 to candidatesCount to fetch details
+                for (let i = 1; i <= count; i++) {
+                    const candidate = await contract.getCandidate(i);
+                    const id = candidate[0].toNumber();
+                    const name = candidate[1];
+                    const voteCount = candidate[2].toNumber();
+
+                    renderCandidateItem(id, name, voteCount);
+                }
+            } catch (err) {
+                console.error("Error loading candidates:", err);
+                candidatesList.innerHTML = `<p style="text-align: center; color: var(--text-muted); padding: 2rem;">Could not load candidate standings. Check console for errors.</p>`;
+            }
+        }
+
+        // Generates the HTML for a single candidate row
+        function renderCandidateItem(id, name, voteCount) {
+            const div = document.createElement('div');
+            div.className = 'candidate-item';
+            div.innerHTML = `
+                <div class="candidate-info">
+                    <h3>${name}</h3>
+                    <p>Candidate ID: #${id}</p>
+                </div>
+                <div class="vote-actions">
+                    <span class="vote-count">${voteCount} Votes</span>
+                    <button class="btn vote-btn" data-id="${id}" ${hasVoted ? 'disabled' : ''}>
+                        ${hasVoted ? 'Voted' : 'Vote'}
+                    </button>
+                </div>
+            `;
+            candidatesList.appendChild(div);
+        }
+
+        // Call the Smart Contract function to register a candidate
+        async function handleAddCandidate() {
+            const name = candidateNameInput.value.trim();
+            if (!name) return;
+
+            try {
+                addCandidateBtn.disabled = true;
+                addCandidateBtn.textContent = "Processing...";
+                
+                showStatus("Submitting candidate registration to blockchain...", "info");
+
+                // Execute smart contract transaction
+                const tx = await contract.addCandidate(name);
+                await tx.wait(); // Wait for block confirmation
+
+                showStatus(`Candidate ${name} successfully registered!`, "success");
+                candidateNameInput.value = '';
+                
+                // Refresh list
+                await loadCandidates();
+            } catch (err) {
+                console.error(err);
+                showStatus("Transaction failed. Are you the admin?", "error");
+            } finally {
+                addCandidateBtn.disabled = false;
+                addCandidateBtn.textContent = "Register Candidate";
+            }
+        }
+
+        // Call the Smart Contract function to vote for a candidate
+        async function handleVote(candidateId) {
+            if (hasVoted) {
+                showStatus("You have already voted!", "error");
+                return;
+            }
+
+            try {
+                showStatus(`Casting your vote for Candidate #${candidateId}... Waiting for confirmation.`, "info");
+                
+                // Execute smart contract transaction
+                const tx = await contract.vote(candidateId);
+                await tx.wait(); // Wait for block confirmation
+
+                showStatus("Vote successfully recorded!", "success");
+                
+                // Update local state and UI
+                hasVoted = true;
+                await loadCandidates(); // Remount list to disable buttons and update counts
+            } catch (err) {
+                console.error(err);
+                if(err.data && err.data.message) {
+                    // Show specific contract error message
+                    showStatus("Error: " + err.data.message, "error");
+                } else {
+                    showStatus("Vote transaction was rejected or failed.", "error");
+                }
+            }
+        }
+
+        // Setup real-time event listeners
+        function setupEventListeners() {
+            // Listen for voting events emitted by the smart contract
+            contract.on("VotedEvent", (candidateId) => {
+                console.log(`Vote registered for candidate #${candidateId}`);
+                // Only reload if the user didn't trigger the event themselves to avoid double reloading
+                // but real-time updates are good:
+                loadCandidates();
+            });
+
+            contract.on("CandidateAdded", (candidateId, name) => {
+                console.log(`New Candidate: ${name} (ID: ${candidateId})`);
+                loadCandidates();
+            });
+        }
+
+        /**
+         * ==========================================
+         *  UI BINDINGS
+         * ==========================================
+         */
+        
+        connectBtn.addEventListener('click', connectWallet);
+        
+        addCandidateBtn.addEventListener('click', handleAddCandidate);
+
+        // Event delegation for dynamically added vote buttons
+        candidatesList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('vote-btn') && !e.target.disabled) {
+                const candidateId = e.target.getAttribute('data-id');
+                handleVote(candidateId);
+            }
+        });
+
+        // Optional: auto-reconnect if already connected and authorized
+        if (window.ethereum) {
+            window.ethereum.on('accountsChanged', (accounts) => {
+                if (accounts.length > 0) { // User switched accounts
+                    window.location.reload(); 
+                } else { // User locked/disconnected
+                    window.location.reload();
+                }
+            });
+        }
+
+    </script>
+</body>
+</html>
